@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## Unreleased
 
+## [0.12.0] - 2025-03-31
+
+### Added
+
+- Updated default container tags to March 2025 release. Refer to the [main Deepgram changelog](https://deepgram.com/changelog/deepgram-self-hosted-march-2025-release-250331) for additional details.
+
+
+## [0.11.1] - 2025-03-28
+
+### Added
+
+- Exposed configuration values to enable named-entity recognition models. See the [March 2025 Deepgram Self-Hosted Changelog](https://deepgram.com/changelog/deepgram-self-hosted-march-2025-release-250307) for more details on features powered by these models.
+
+## [0.11.0] - 2025-03-07
+
+### Added
+
+- Updated default container tags to March 2025 release. Refer to the [main Deepgram changelog](https://deepgram.com/changelog/deepgram-self-hosted-march-2025-release-250307) for additional details.
+
+## [0.10.0] - 2025-01-30
+
+### Added
+
+- Updated default container tags to January 2025 release. Refer to the [main Deepgram changelog](https://deepgram.com/changelog/deepgram-self-hosted-january-2025-release-250130) for additional details.
+
 ## [0.9.0] - 2024-12-26
 
 ### Added
@@ -153,7 +178,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Initial implementation of the Helm chart.
 
 
-[unreleased]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.8.1...HEAD
+[unreleased]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.12.0...HEAD
+[0.12.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.11.1...0.12.0
+[0.11.1]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.11.0...0.11.1
+[0.11.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.10.0...deepgram-self-hosted-0.11.0
+[0.10.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.9.0...deepgram-self-hosted-0.10.0
+[0.9.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.8.1...deepgram-self-hosted-0.9.0
 [0.8.1]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.8.0...deepgram-self-hosted-0.8.1
 [0.8.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.7.0...deepgram-self-hosted-0.8.0
 [0.7.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.6.0...deepgram-self-hosted-0.7.0
@@ -167,5 +197,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.2.0-beta]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.1.1-alpha...deepgram-self-hosted-0.2.0-beta
 [0.1.1-alpha]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.1.0-alpha...deepgram-self-hosted-0.1.1-alpha
 [0.1.0-alpha]: https://github.com/deepgram/self-hosted-resources/releases/tag/deepgram-self-hosted-0.1.0-alpha
-
 
