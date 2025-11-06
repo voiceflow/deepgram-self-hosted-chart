@@ -65,12 +65,13 @@ topic_detection = true # or false
 summarization = true # or false
 
 ### Enables pre-recorded entity detection *if* a valid entity detection model is available
-### *WARNING*: Beta functionality.
 entity_detection = false # or true
 
 ### Enables pre-recorded entity-based redaction *if* a valid entity detection model is available
-### *WARNING*: Beta functionality.
-entity_redaction = false # or true
+entity_redaction = true # or false
+
+### Enables pre-recorded entity formatting *if* a valid NER model is available
+format_entity_tags = true # or false
 
 ### If API is receiving requests faster than Engine can process them, a request
 ### queue will form. By default, this queue is stored in memory. Under high load,
@@ -84,6 +85,12 @@ entity_redaction = false # or true
 
 ### Enables streaming TTS *if* a valid Aura TTS model is available
 speak_streaming = true # or false
+
+### Toggles usage data redaction; set to false to disable redaction of usage data; defaults to true if not present
+# redact_usage = true # or false
+
+### Enables Flux turn-based streaming STT
+listen_v2 = false # or true
 
 ### Configure the backend pool of speech engines (generically referred to as
 ### "drivers" here). The API will load-balance among drivers in the standard
