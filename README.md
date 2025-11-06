@@ -1,5 +1,22 @@
-# Deepgram Self-Hosted Resources
-Official resources for running [Deepgram](https://deepgram.com) in a [self-hosted](https://developers.deepgram.com/docs/self-hosted-introduction) environment.
+# Deepgram Self-Hosted Helm Chart (Voiceflow Fork)
+
+This is Voiceflow's fork of the official [Deepgram Self-Hosted Resources](https://github.com/deepgram/self-hosted-resources).
+
+## Why We Forked
+
+We maintain our own version of the Deepgram Helm chart to support Voiceflow-specific requirements:
+
+- **Datadog Integration**: Added support for Datadog service naming via `DD_SERVICE` environment variables for better observability
+- **Custom Environment Variables**: Enhanced templating to allow flexible environment variable configuration through `values.yaml`
+- **Internal Deployment Needs**: Tailored configurations for Voiceflow's infrastructure and deployment patterns
+
+## Versioning
+
+We use a hybrid versioning scheme: `<upstream-version>-vf.<voiceflow-version>`
+
+Example: `0.23.1-vf.1` means:
+- Based on upstream version `0.23.1`
+- Voiceflow-specific changes version `1`
 
 ## Contents
 

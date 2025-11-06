@@ -1,8 +1,8 @@
 apiVersion: v2
 name: deepgram-self-hosted
 type: application
-version: 0.10.0
-appVersion: "release-250331"
+version: 0.23.1-vf.1 # (upstream: 0.23.1, voiceflow: 1)
+appVersion: "release-251029"
 description: A Helm chart for running Deepgram services in a self-hosted environment
 home: "https://developers.deepgram.com/docs/self-hosted-introduction"
 sources: ["https://github.com/deepgram/self-hosted-resources"]
