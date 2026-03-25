@@ -10,6 +10,9 @@ metadata:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-delete-policy": before-hook-creation
 spec:
+  {{- if .Values.engine.modelManager.volumes.aws.efs.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ .Values.engine.modelManager.volumes.aws.efs.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     spec:
       affinity:

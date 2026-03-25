@@ -72,6 +72,9 @@ spec:
       {{- if or $.Values.engine.serviceAccount.create $.Values.engine.serviceAccount.name }}
       serviceAccountName: {{ default (printf "%s-sa" $.Values.engine.namePrefix) $.Values.engine.serviceAccount.name }}
       {{- end }}
+      {{- with $.Values.engine.runtimeClassName }}
+      runtimeClassName: {{ . }}
+      {{- end }}
       containers:
       - name: {{ $.Values.engine.namePrefix }}{{- if $type }}-{{ $type }}{{- end }}
         {{- with $.Values.engine.containerSecurityContext }}
@@ -80,6 +83,13 @@ spec:
         {{- end }}
         image: {{ $.Values.engine.image.path }}:{{ $.Values.engine.image.tag }}
         imagePullPolicy: {{ $.Values.engine.image.pullPolicy }}
+        {{- if $.Values.engine.lifecycle.postStart.command }}
+        lifecycle:
+          postStart:
+            exec:
+              command:
+                {{- toYaml $.Values.engine.lifecycle.postStart.command | nindent 16 }}
+        {{- end }}
         envFrom:
         - secretRef:
             name: {{ required "Missing Deepgram self-hosted API key - see `global.deepgramSecretRef`" $.Values.global.deepgramSecretRef }}
@@ -96,8 +106,20 @@ spec:
           value: {{ .value | quote }}
         {{- end }}
         {{- end }}
+        {{- with $.Values.engine.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- if $.Values.aura2.enabled }}
-        {{- if $.Values.aura2.english.enabled }}
+        {{- if $.Values.aura2.polyglot.enabled }}
+        - name: IMPELLER_AURA2_MAX_BATCH_SIZE
+          value: "{{ $.Values.aura2.polyglot.maxBatchSize }}"
+        - name: IMPELLER_AURA2_T2C_UUID
+          value: "{{ $.Values.aura2.polyglot.t2cUuid }}"
+        - name: IMPELLER_AURA2_C2A_UUID
+          value: "{{ $.Values.aura2.polyglot.c2aUuid }}"
+        - name: CUDA_VISIBLE_DEVICES
+          value: "{{ $.Values.aura2.polyglot.cudaVisibleDevices }}"
+        {{- else if $.Values.aura2.english.enabled }}
         - name: IMPELLER_AURA2_MAX_BATCH_SIZE
           value: "{{ $.Values.aura2.english.maxBatchSize }}"
         - name: IMPELLER_AURA2_T2C_UUID
@@ -125,7 +147,7 @@ spec:
             memory: "{{ $.Values.engine.resources.requests.memory }}"
             cpu: "{{ $.Values.engine.resources.requests.cpu }}"
             {{- if gt (int $.Values.engine.resources.requests.gpu) 0 }}
-            nvidia.com/gpu: {{ $.Values.engine.resources.requests.gpu }}
+            {{ $.Values.engine.resources.gpuResourceName }}: {{ $.Values.engine.resources.requests.gpu }}
             {{- end }}
           limits:
             {{- if $.Values.engine.resources.limits.memory }}
@@ -135,7 +157,7 @@ spec:
             cpu: "{{ $.Values.engine.resources.limits.cpu }}"
             {{- end }}
             {{- if gt (int $.Values.engine.resources.limits.gpu) 0 }}
-            nvidia.com/gpu: {{ $.Values.engine.resources.limits.gpu }}
+            {{ $.Values.engine.resources.gpuResourceName }}: {{ $.Values.engine.resources.limits.gpu }}
             {{- end }}
         volumeMounts:
         - name: engine-config-volume

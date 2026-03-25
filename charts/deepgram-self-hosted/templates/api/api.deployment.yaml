@@ -72,6 +72,9 @@ spec:
           value: {{ .value | quote }}
         {{- end }}
         {{- end }}
+        {{- with .Values.api.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
         - name: OPENAI_API_KEY
           {{- if and .Values.global.thirdPartyCredentials .Values.global.thirdPartyCredentials.openAiSecretRef }}
           valueFrom:

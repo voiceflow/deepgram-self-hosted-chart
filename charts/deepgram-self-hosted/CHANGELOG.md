@@ -4,6 +4,31 @@ All notable changes to this Helm chart will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.0-vf.1] - 2026-03-25
+
+### Changed
+
+- Synced with upstream Deepgram self-hosted chart v0.32.0 (from v0.23.1)
+- Updated default container tags to March 2026 release (`release-260319`)
+
+### Added
+
+- **BREAKING**: Replaced `[half_precision]` engine config with `[health]` section containing `gpu_required` (auto-detection by new images)
+- Added `engine.features.useV2LanguageDetection` for 36-language detection model support
+- Added `engine.flux.max_streams` for production Flux workload configuration
+- Added `engine.modelManager.volumes.aws.efs.ttlSecondsAfterFinished` to prevent completed Job pods from blocking PVC
+- Added EFS StorageClass configurability (`storageClass.create`, `storageClass.name`) for restricted environments
+- Added `engine.runtimeClassName` for KOPS-managed NVIDIA drivers or non-default containerd runtimes
+- Added `engine.lifecycle.postStart.command` for optional container postStart hooks
+- Added `engine.resources.gpuResourceName` for configurable GPU resource names (MIG support)
+- Added `extraEnv` support for API, Engine, and License Proxy deployments (supports `valueFrom` references)
+- Added `aura2.polyglot` configuration block for multilingual TTS (Dutch, German, French, Italian, Japanese)
+- Added `monitoring/` directory with Grafana dashboard template and alerting guide
+
+### Removed
+
+- Removed `engine.halfPrecision.state` configuration (replaced by `engine.health.gpuRequired`)
+
 ## [0.23.1] - 2025-11-04
 
 ### Fixed
@@ -316,7 +341,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Initial implementation of the Helm chart.
 
 
-[unreleased]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.23.0...HEAD
+[unreleased]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.32.0...HEAD
+[0.32.0-vf.1]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.23.1...deepgram-self-hosted-0.32.0
 [0.23.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.22.0...deepgram-self-hosted-0.23.0
 [0.22.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.21.0...deepgram-self-hosted-0.22.0
 [0.21.0]: https://github.com/deepgram/self-hosted-resources/compare/deepgram-self-hosted-0.20.0...deepgram-self-hosted-0.21.0
