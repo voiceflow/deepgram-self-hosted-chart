@@ -44,6 +44,12 @@ export DEEPGRAM_API_KEY=<your-api-key>
 # Test Flux on a different API than streaming
 ./dg-validate -model nova-2-general -skip-batch \
   -flux-url localhost:8081 -flux-model flux-general-en
+
+# Test Nova-3 without smart formatting (no NER model needed)
+./dg-validate -model nova-3 -smart-format=false -skip-batch -skip-flux
+
+# Test Nova-3 with smart formatting (requires entity-detector NER model)
+./dg-validate -model nova-3 -skip-batch -skip-flux
 ```
 
 ## Flags
@@ -58,6 +64,7 @@ export DEEPGRAM_API_KEY=<your-api-key>
 | `-flux-model` | same as `-model` | Model for Flux STT (e.g. `flux-general-en`) |
 | `-language` | `en` | Language code for streaming/batch (e.g. en, es, fr) |
 | `-audio` | `../benchmarking/audio.8k.wav` | Path to test audio file (WAV) |
+| `-smart-format` | `true` | Enable smart formatting (requires NER model for Nova-3) |
 | `-skip-batch` | `false` | Skip the Batch STT test |
 | `-skip-streaming` | `false` | Skip the Streaming STT test |
 | `-skip-flux` | `false` | Skip the Flux STT test |
@@ -77,6 +84,7 @@ export DEEPGRAM_API_KEY=<your-api-key>
 - **Flux uses v2 endpoint**: Flux models require `/v2/listen` and the model name includes the language (e.g. `flux-general-en`), so the `-language` flag is not used for Flux.
 - **Port-forward stability**: A failed request (wrong model name, etc.) can crash `kubectl port-forward`. Restart it before retrying.
 - **Transcripts stream live**: Streaming STT shows interim (gray) and final (green) results. Flux shows words appearing as they're transcribed.
+- **Smart formatting and Nova-3**: Nova-3 on `release-260319`+ requires the `entity-detector` NER model files for `smart_format=true`. If you don't have the NER models loaded, use `-smart-format=false` to test Nova-3 without formatting. Nova-2 works with smart formatting without the NER model.
 
 ## Audio File
 

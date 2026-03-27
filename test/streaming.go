@@ -3,8 +3,8 @@ package main
 import "fmt"
 
 func testStreaming(cfg *Config) error {
-	url := fmt.Sprintf("ws://%s/v1/listen?model=%s&language=%s&smart_format=true&punctuate=true&interim_results=true",
-		cfg.APIURL, cfg.Model, cfg.Language)
+	url := fmt.Sprintf("ws://%s/v1/listen?model=%s&language=%s&smart_format=%t&punctuate=true&interim_results=true",
+		cfg.APIURL, cfg.Model, cfg.Language, cfg.SmartFormat)
 
 	res, err := runWebSocketTest(cfg, url)
 	if err != nil {
