@@ -86,6 +86,18 @@ export DEEPGRAM_API_KEY=<your-api-key>
 - **Transcripts stream live**: Streaming STT shows interim (gray) and final (green) results. Flux shows words appearing as they're transcribed.
 - **Smart formatting and Nova-3**: Nova-3 on `release-260319`+ requires the `entity-detector` NER model files for `smart_format=true`. If you don't have the NER models loaded, use `-smart-format=false` to test Nova-3 without formatting. Nova-2 works with smart formatting without the NER model.
 
+## Useful Commands
+
+Check which models are loaded on each engine:
+
+```bash
+# Nova/standard engine models
+kubectl exec -n deepgram -it $(kubectl get pod -n deepgram -l app=deepgram-engine -o jsonpath='{.items[0].metadata.name}') -- ls -la /models/
+
+# Flux engine models
+kubectl exec -n deepgram-flux -it $(kubectl get pod -n deepgram-flux -l app=deepgram-engine -o jsonpath='{.items[0].metadata.name}') -- ls -la /models/
+```
+
 ## Audio File
 
 By default, the tool uses `../benchmarking/audio.8k.wav` (8kHz, 16-bit PCM mono, ~20 seconds). Use the `-audio` flag to specify a different file.
