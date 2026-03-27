@@ -1,9 +1,11 @@
 {{- if .Values.engine.modelManager.volumes.aws.efs.enabled }}
+{{- if .Values.engine.modelManager.volumes.aws.efs.storageClass.create }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: {{ .Values.engine.modelManager.volumes.aws.efs.namePrefix }}-aws-efs-sc
+  name: {{ .Values.engine.modelManager.volumes.aws.efs.storageClass.name | default (printf "%s-aws-efs-sc" .Values.engine.modelManager.volumes.aws.efs.namePrefix) }}
   labels:
 {{ include "deepgram-self-hosted.labels" . | indent 4}}
 provisioner: efs.csi.aws.com
+{{- end }}
 {{- end }}

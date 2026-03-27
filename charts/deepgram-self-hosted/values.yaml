@@ -237,6 +237,17 @@ api:
     - name: DD_SERVICE
       value: "deepgram-api"
 
+  # -- (list) Additional environment variables to add to the API container.
+  # Supports both plain values and valueFrom references (secretKeyRef, configMapKeyRef).
+  extraEnv: []
+  # - name: MY_VAR
+  #   value: "my-value"
+  # - name: MY_SECRET
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: my-secret
+  #       key: my-key
+
   podAnnotations:
     ad.datadoghq.com/deepgram-engine.checks: |
       {
@@ -262,7 +273,7 @@ api:
     # -- pullPolicy configures how the Kubelet attempts to pull the Deepgram API image
     pullPolicy: IfNotPresent
     # -- tag defines which Deepgram release to use for API containers
-    tag: release-251029
+    tag: release-260319
 
   # -- Additional labels to add to API resources
   additionalLabels: {}
@@ -468,6 +479,17 @@ engine:
     - name: DD_SERVICE
       value: "deepgram-engine"
 
+  # -- (list) Additional environment variables to add to the Engine container.
+  # Supports both plain values and valueFrom references (secretKeyRef, configMapKeyRef).
+  extraEnv: []
+  # - name: MY_VAR
+  #   value: "my-value"
+  # - name: MY_SECRET
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: my-secret
+  #       key: my-key
+
   image:
     # -- path configures the image path to use for creating Engine containers.
     # You may change this from the public Quay image path if you have imported
@@ -476,7 +498,7 @@ engine:
     # -- pullPolicy configures how the Kubelet attempts to pull the Deepgram Engine image
     pullPolicy: IfNotPresent
     # -- tag defines which Deepgram release to use for Engine containers
-    tag: release-251029
+    tag: release-260319
 
   # -- Additional labels to add to Engine resources
   additionalLabels: {}
@@ -523,13 +545,16 @@ engine:
     requests:
       memory: "30Gi"
       cpu: "4000m"
-      # -- gpu maps to the nvidia.com/gpu resource parameter
+      # -- gpu maps to the GPU resource parameter specified by gpuResourceName
       gpu: 1
     limits:
       memory: "40Gi"
       cpu: "8000m"
-      # -- gpu maps to the nvidia.com/gpu resource parameter
+      # -- gpu maps to the GPU resource parameter specified by gpuResourceName
       gpu: 1
+    # -- Configurable GPU resource name. Change this for MIG support
+    # (e.g., "nvidia.com/mig-1g.5gb") or other GPU resource types.
+    gpuResourceName: "nvidia.com/gpu"
 
   # -- The startupProbe combination of `periodSeconds` and `failureThreshold` allows
   # time for the container to load all models and start listening for incoming requests.
@@ -580,6 +605,17 @@ engine:
 
   # -- [Container-level security context](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container) for Engine containers.
   containerSecurityContext: {}
+
+  # -- (string) Optional runtime class name for Engine pods. Use this if your cluster
+  # requires a non-default container runtime (e.g., for KOPS-managed NVIDIA drivers).
+  runtimeClassName:
+
+  # -- Optional lifecycle hooks for Engine containers.
+  # @default -- ``
+  lifecycle:
+    postStart:
+      # -- (list) Optional command to run after Engine container starts (e.g., ["/sbin/ldconfig"])
+      command: []
 
   serviceAccount:
     # -- Specifies whether to create a default service account for the Deepgram Engine Deployment.
@@ -659,6 +695,17 @@ engine:
           # -- Whether to force a fresh download of all model links provided,
           # even if models are already present in EFS.
           forceDownload: false
+          # -- (int) TTL in seconds for completed model download Job pods.
+          # Without this, completed Job pods retain a lock on PVC, preventing namespace deletion.
+          # Default: 86400 (24 hours)
+          ttlSecondsAfterFinished: 86400
+          storageClass:
+            # -- Whether to create a StorageClass resource for EFS.
+            # Set to false if using a pre-existing StorageClass in restricted environments.
+            create: true
+            # -- (string) Name of the StorageClass to use. If empty, defaults to
+            # "{namePrefix}-aws-efs-sc". Use this to reference an existing StorageClass.
+            name:
       gcp:
         gpd:
           # -- Whether to use an [GKE Persistent Disks](https://cloud.google.com/kubernetes-engine/docs/concepts/persistent-volumes)
@@ -701,10 +748,15 @@ engine:
     # -- Enables format entity tags on streaming audio
     # *if* a valid NER model is available.
     streamingNer: true
+    # -- Enables V2 language detection with 36-language detection model.
+    useV2LanguageDetection: false
 
   flux:
     # -- Enables Flux turn-based streaming STT
     enabled: false
+    # -- (int) Maximum number of concurrent Flux streams.
+    # Required for production Flux workloads; optimal value depends on GPU type.
+    max_streams:
 
   # -- chunking defines the size of audio chunks to process in seconds.
   # Adjusting these values will affect both inference performance and accuracy
@@ -730,11 +782,11 @@ engine:
         # representative for more details.
         step: 1.0
 
-  halfPrecision:
-    # -- Engine will automatically enable half precision operations if your GPU supports
-    # them. You can explicitly enable or disable this behavior with the state parameter
-    # which supports `"enable"`, `"disabled"`, and `"auto"`.
-    state: "auto"
+  health:
+    # -- Controls whether Engine fails on startup if no GPU is detected.
+    # While Engine can run without a GPU, production deployments require one.
+    # Set to true to fail fast if no GPU is available.
+    gpuRequired: false
 
 # -- Configuration options for the optional
 # [Deepgram License Proxy](https://developers.deepgram.com/docs/license-proxy).
@@ -761,13 +813,24 @@ licenseProxy:
   # associated with the Deepgram License Proxy containers.
   namePrefix: "deepgram-license-proxy"
 
+  # -- (list) Additional environment variables to add to the License Proxy container.
+  # Supports both plain values and valueFrom references (secretKeyRef, configMapKeyRef).
+  extraEnv: []
+  # - name: MY_VAR
+  #   value: "my-value"
+  # - name: MY_SECRET
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: my-secret
+  #       key: my-key
+
   image:
     # -- path configures the image path to use for creating License Proxy containers.
     # You may change this from the public Quay image path if you have imported
     # Deepgram images into a private container registry.
     path: quay.io/deepgram/self-hosted-license-proxy
     # -- tag defines which Deepgram release to use for License Proxy containers
-    tag: release-251029
+    tag: release-260319
     # -- pullPolicy configures how the Kubelet attempts to pull the Deepgram
     # License Proxy image
     pullPolicy: IfNotPresent
@@ -1079,3 +1142,13 @@ aura2:
     t2cUuid: ""
     c2aUuid: ""
     cudaVisibleDevices: "2,3"
+
+  # -- Polyglot (multilingual) configuration for Aura-2
+  # Supports Dutch, German, French, Italian, Japanese
+  # @default -- ``
+  polyglot:
+    enabled: false
+    maxBatchSize: 8
+    t2cUuid: ""
+    c2aUuid: ""
+    cudaVisibleDevices: "0,1"

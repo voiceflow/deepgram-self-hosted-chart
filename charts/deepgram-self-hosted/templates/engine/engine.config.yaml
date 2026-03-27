@@ -46,9 +46,13 @@ data:
       multichannel = true
       language_detection = true
       streaming_ner = {{ .Values.engine.features.streamingNer }}
+      use_v2_language_detection = {{ .Values.engine.features.useV2LanguageDetection }}
 
     [flux]
       enabled = {{ .Values.engine.flux.enabled }}
+      {{- if .Values.engine.flux.max_streams }}
+      max_streams = {{ .Values.engine.flux.max_streams }}
+      {{- end }}
 
     [chunking.batch]
       {{- if .Values.engine.chunking.speechToText.batch.minDuration }}
@@ -67,8 +71,8 @@ data:
       {{- end }}
       step = {{ .Values.engine.chunking.speechToText.streaming.step }}
 
-    [half_precision]
-      state = "{{ .Values.engine.halfPrecision.state }}"
+    [health]
+      gpu_required = {{ .Values.engine.health.gpuRequired }}
 
     {{- if .Values.engine.customToml }}
     {{ .Values.engine.customToml | nindent 4 }}
