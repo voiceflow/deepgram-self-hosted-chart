@@ -17,6 +17,7 @@ type Config struct {
 	FluxModel     string
 	Language      string
 	Audio         []byte
+	SmartFormat   bool
 	SkipFlux      bool
 	SkipBatch     bool
 	SkipStreaming bool
@@ -31,6 +32,7 @@ func main() {
 	fluxURL := flag.String("flux-url", "", "Flux API host:port if different from -url")
 	language := flag.String("language", "en", "Language code (e.g. en, es, fr)")
 	audio := flag.String("audio", "", "Path to audio file (default: ../benchmarking/audio.8k.wav)")
+	smartFormat := flag.Bool("smart-format", true, "Enable smart formatting (requires NER model for Nova-3)")
 	skipFlux := flag.Bool("skip-flux", false, "Skip Flux STT test")
 	skipBatch := flag.Bool("skip-batch", false, "Skip Batch STT test")
 	skipStreaming := flag.Bool("skip-streaming", false, "Skip Streaming STT test")
@@ -77,6 +79,7 @@ func main() {
 		FluxModel:     fm,
 		Language:       *language,
 		Audio:         audioData,
+		SmartFormat:   *smartFormat,
 		SkipFlux:      *skipFlux,
 		SkipBatch:     *skipBatch,
 		SkipStreaming: *skipStreaming,

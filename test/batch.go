@@ -10,7 +10,7 @@ import (
 )
 
 func testBatch(cfg *Config) error {
-	url := fmt.Sprintf("http://%s/v1/listen?model=%s&language=%s&smart_format=true", cfg.APIURL, cfg.BatchModel, cfg.Language)
+	url := fmt.Sprintf("http://%s/v1/listen?model=%s&language=%s&smart_format=%t", cfg.APIURL, cfg.BatchModel, cfg.Language, cfg.SmartFormat)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(cfg.Audio))
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
