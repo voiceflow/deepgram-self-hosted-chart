@@ -101,3 +101,66 @@ kubectl exec -n deepgram-flux -it $(kubectl get pod -n deepgram-flux -l app=deep
 ## Audio File
 
 By default, the tool uses `../benchmarking/audio.8k.wav` (8kHz, 16-bit PCM mono, ~20 seconds). Use the `-audio` flag to specify a different file.
+
+## In-Cluster Test Pods
+
+For testing connectivity from inside the Kubernetes cluster (e.g. when the Deepgram endpoint is only reachable internally), two test pod manifests are provided. These deploy lightweight Python pods that validate HTTP health and WebSocket streaming without needing `kubectl port-forward`.
+
+| Manifest | Endpoint | Protocol | Use case |
+|----------|----------|----------|----------|
+| `k8s-test-pod.yaml` | `:8000/v1/listen` | WSS (v1 streaming) | Nova-2 / Nova-3 streaming STT |
+| `k8s-test-pod-flux.yaml` | `:8002/v2/listen` | WSS (v2 Flux) | Flux turn-based STT |
+
+Both pods share the same API key secret and run three tests:
+
+| Test | What it validates |
+|------|-------------------|
+| TCP/TLS Connectivity | Pod can reach the endpoint at the network level |
+| Health Check | `GET /v1/status/engine` returns engine status "Connected" |
+| WebSocket Streaming | Full WSS pipeline — sends 5s of generated audio, reads responses |
+
+### Usage
+
+```bash
+# 1. Create the API key secret (once per namespace, shared by both pods)
+kubectl create namespace <NAMESPACE>
+
+kubectl create secret generic deepgram-test-key \
+  --from-literal=api-key=<YOUR_DEEPGRAM_API_KEY> \
+  -n <NAMESPACE>
+
+# 2a. Test standard streaming (v1) on port 8000
+kubectl apply -f k8s-test-pod.yaml -n <NAMESPACE>
+kubectl logs -f deepgram-test -n <NAMESPACE>
+
+# 2b. Test Flux streaming (v2) on port 8002
+kubectl apply -f k8s-test-pod-flux.yaml -n <NAMESPACE>
+kubectl logs -f deepgram-flux-test -n <NAMESPACE>
+
+# 3. Clean up
+kubectl delete -f k8s-test-pod.yaml -f k8s-test-pod-flux.yaml -n <NAMESPACE>
+```
+
+### Configuration
+
+Edit the `env` section in each Pod spec to configure:
+
+**`k8s-test-pod.yaml`** (v1 streaming):
+
+| Env Var | Default | Description |
+|---------|---------|-------------|
+| `DEEPGRAM_ENDPOINT` | `https://useast1.internal.voiceflow.com:8000` | Base URL of the Deepgram API |
+| `DEEPGRAM_MODEL` | `nova-2-general` | STT model to test |
+| `DEEPGRAM_LANGUAGE` | `en` | Language code |
+| `SMART_FORMAT` | `true` | Enable smart formatting |
+| `SKIP_TLS_VERIFY` | `false` | Skip TLS cert verification (for self-signed certs) |
+| `SKIP_STREAMING` | `false` | Skip the WebSocket streaming test |
+
+**`k8s-test-pod-flux.yaml`** (v2 Flux):
+
+| Env Var | Default | Description |
+|---------|---------|-------------|
+| `DEEPGRAM_ENDPOINT` | `https://useast1.internal.voiceflow.com:8002` | Base URL of the Flux API |
+| `DEEPGRAM_MODEL` | `flux-general-en` | Flux model (language is part of the model name) |
+| `SKIP_TLS_VERIFY` | `false` | Skip TLS cert verification (for self-signed certs) |
+| `SKIP_STREAMING` | `false` | Skip the WebSocket streaming test |

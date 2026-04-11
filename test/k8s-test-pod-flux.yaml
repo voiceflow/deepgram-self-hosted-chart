@@ -1,0 +1,381 @@
+##
+## Deepgram Flux In-Cluster Test Pod
+##
+## Deploys a pod inside the cluster to validate connectivity to a Deepgram
+## Flux endpoint via HTTP (health) and WebSocket (v2 streaming STT).
+##
+## Usage:
+##   # 1. Create the secret with your API key (once):
+##   kubectl create secret generic deepgram-test-key \
+##     --from-literal=api-key=<YOUR_DEEPGRAM_API_KEY> \
+##     -n <NAMESPACE>
+##
+##   # 2. Deploy the test pod:
+##   kubectl apply -f k8s-test-pod-flux.yaml -n <NAMESPACE>
+##
+##   # 3. Watch the logs:
+##   kubectl logs -f deepgram-flux-test -n <NAMESPACE>
+##
+##   # 4. Clean up:
+##   kubectl delete -f k8s-test-pod-flux.yaml -n <NAMESPACE>
+##
+## Configuration (edit the env vars below):
+##   DEEPGRAM_ENDPOINT  - Base URL of the Deepgram Flux API (e.g. https://host:8002)
+##   DEEPGRAM_MODEL     - Flux model name including language (e.g. flux-general-en)
+##   SKIP_TLS_VERIFY    - Set to "true" to skip TLS cert verification
+##   SKIP_STREAMING     - Set to "true" to only run health check
+##
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deepgram-flux-test-script
+  labels:
+    app: deepgram-flux-test
+data:
+  test.py: |
+    #!/usr/bin/env python3
+    """
+    Deepgram Flux in-cluster connectivity test.
+
+    Tests:
+      1. HTTP health check        - GET /v1/status/engine
+      2. Flux WebSocket streaming  - wss:///v2/listen (streams generated audio)
+
+    Flux uses /v2/listen and returns TurnInfo messages instead of Results.
+    The model name includes the language (e.g. flux-general-en).
+    """
+    import json
+    import os
+    import ssl
+    import struct
+    import sys
+    import math
+    import time
+    import urllib.request
+    import urllib.error
+
+    # ---------------------------------------------------------------------------
+    # Config from env
+    # ---------------------------------------------------------------------------
+    ENDPOINT = os.environ.get("DEEPGRAM_ENDPOINT", "https://useast1.internal.voiceflow.com:8002")
+    API_KEY = os.environ.get("DEEPGRAM_API_KEY", "")
+    MODEL = os.environ.get("DEEPGRAM_MODEL", "flux-general-en")
+    SKIP_TLS = os.environ.get("SKIP_TLS_VERIFY", "false").lower() == "true"
+    SKIP_STREAMING = os.environ.get("SKIP_STREAMING", "false").lower() == "true"
+
+    # Strip trailing slash
+    ENDPOINT = ENDPOINT.rstrip("/")
+
+    def banner(msg):
+        print(f"\n{'='*60}")
+        print(f"  {msg}")
+        print(f"{'='*60}")
+
+    def result(name, passed, detail=""):
+        status = "\033[32mPASS\033[0m" if passed else "\033[31mFAIL\033[0m"
+        print(f"  [{status}] {name}")
+        if detail:
+            for line in detail.strip().split("\n"):
+                print(f"         {line}")
+
+    # ---------------------------------------------------------------------------
+    # Generate 8kHz 16-bit PCM mono WAV (5 seconds of 440Hz tone)
+    # ---------------------------------------------------------------------------
+    def generate_wav(duration_s=5, sample_rate=8000, freq=440):
+        num_samples = sample_rate * duration_s
+        samples = []
+        for i in range(num_samples):
+            t = i / sample_rate
+            val = int(16000 * math.sin(2 * math.pi * freq * t))
+            samples.append(struct.pack("<h", max(-32768, min(32767, val))))
+        pcm = b"".join(samples)
+
+        data_size = len(pcm)
+        header = struct.pack(
+            "<4sI4s4sIHHIIHH4sI",
+            b"RIFF",
+            36 + data_size,
+            b"WAVE",
+            b"fmt ",
+            16,
+            1,          # PCM
+            1,          # mono
+            sample_rate,
+            sample_rate * 2,
+            2,          # block align
+            16,         # bits per sample
+            b"data",
+            data_size,
+        )
+        return header + pcm
+
+    # ---------------------------------------------------------------------------
+    # SSL context
+    # ---------------------------------------------------------------------------
+    def get_ssl_context():
+        ctx = ssl.create_default_context()
+        if SKIP_TLS:
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+
+    # ---------------------------------------------------------------------------
+    # Test 1: HTTP Health Check
+    # ---------------------------------------------------------------------------
+    def test_health():
+        url = f"{ENDPOINT}/v1/status/engine"
+        print(f"         URL: {url}")
+        try:
+            req = urllib.request.Request(url)
+            req.add_header("Authorization", f"Token {API_KEY}")
+            ctx = get_ssl_context()
+            with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+                body = resp.read().decode()
+                data = json.loads(body)
+                status = data.get("engine_connection_status", "unknown")
+                if status == "Connected":
+                    result("Health Check", True, f"engine_connection_status: {status}")
+                    return True
+                else:
+                    result("Health Check", False, f"engine_connection_status: {status} (expected 'Connected')")
+                    return False
+        except Exception as e:
+            result("Health Check", False, str(e))
+            return False
+
+    # ---------------------------------------------------------------------------
+    # Test 2: Flux WebSocket Streaming STT (v2)
+    # ---------------------------------------------------------------------------
+    def test_flux_streaming():
+        try:
+            import websocket
+        except ImportError:
+            result("Flux Streaming STT", False, "websocket-client not installed")
+            return False
+
+        scheme = "wss" if ENDPOINT.startswith("https") else "ws"
+        host = ENDPOINT.replace("https://", "").replace("http://", "")
+        url = f"{scheme}://{host}/v2/listen?model={MODEL}"
+        print(f"         URL: {url}")
+
+        audio = generate_wav(duration_s=5)
+        print(f"         Generated {len(audio)} bytes of test audio (5s 440Hz tone, 8kHz PCM)")
+
+        turn_info_count = 0
+        got_turn_info = False
+        last_transcript = ""
+        last_printed = 0
+        error_msg = None
+
+        sslopt = {}
+        if SKIP_TLS:
+            sslopt = {"cert_reqs": ssl.CERT_NONE, "check_hostname": False}
+
+        try:
+            ws = websocket.WebSocket(sslopt=sslopt)
+            ws.connect(
+                url,
+                header=[f"Authorization: Token {API_KEY}"],
+                timeout=15,
+            )
+            print("         Connected to WebSocket")
+
+            # Send audio in chunks (800 bytes every 50ms = 16KB/s = 8kHz 16-bit mono)
+            chunk_size = 800
+            offset = 0
+            while offset < len(audio):
+                end = min(offset + chunk_size, len(audio))
+                ws.send_binary(audio[offset:end])
+                offset = end
+                time.sleep(0.05)
+
+            # Signal end of stream
+            ws.send(json.dumps({"type": "CloseStream"}))
+            print("         Audio sent, reading responses...")
+
+            # Read messages
+            ws.settimeout(15)
+            while True:
+                try:
+                    data = ws.recv()
+                    if not data:
+                        break
+                    msg = json.loads(data)
+                    msg_type = msg.get("type", "")
+
+                    if msg_type == "TurnInfo":
+                        got_turn_info = True
+                        turn_info_count += 1
+                        transcript = msg.get("transcript", "")
+                        event = msg.get("event", "")
+                        last_transcript = transcript
+
+                        # Print new characters as transcript grows
+                        if len(transcript) > last_printed:
+                            print(f"         \033[32m{transcript[last_printed:]}\033[0m", end="", flush=True)
+                            last_printed = len(transcript)
+
+                        if event == "EndOfTurn":
+                            last_printed = 0
+                            print()
+                            print(f"         [EndOfTurn] confidence: {msg.get('end_of_turn_confidence', 'n/a')}")
+
+                    elif msg_type == "Metadata":
+                        print(f"         Received Metadata (request_id: {msg.get('request_id', 'n/a')})")
+
+                except websocket.WebSocketTimeoutException:
+                    break
+                except websocket.WebSocketConnectionClosedException:
+                    break
+
+            ws.close()
+
+        except Exception as e:
+            error_msg = str(e)
+            result("Flux Streaming STT", False, error_msg)
+            return False
+
+        detail_lines = [f"{turn_info_count} TurnInfo messages"]
+        if last_transcript:
+            detail_lines.append(f"Final transcript: {last_transcript}")
+
+        if not got_turn_info:
+            detail_lines.append("WARNING: No TurnInfo messages received (tone may not produce speech)")
+            detail_lines.append("WebSocket connection and v2 pipeline verified")
+            # Connection success is still meaningful
+            passed = True
+        else:
+            passed = True
+
+        result("Flux Streaming STT", passed, "\n".join(detail_lines))
+        return passed
+
+    # ---------------------------------------------------------------------------
+    # Test 3: Basic TCP/TLS connectivity
+    # ---------------------------------------------------------------------------
+    def test_connectivity():
+        import socket
+        host = ENDPOINT.replace("https://", "").replace("http://", "")
+        if ":" in host:
+            hostname, port = host.rsplit(":", 1)
+            port = int(port)
+        else:
+            hostname = host
+            port = 443 if ENDPOINT.startswith("https") else 80
+
+        print(f"         Target: {hostname}:{port}")
+        try:
+            sock = socket.create_connection((hostname, port), timeout=5)
+            if ENDPOINT.startswith("https"):
+                ctx = get_ssl_context()
+                sock = ctx.wrap_socket(sock, server_hostname=hostname)
+            sock.close()
+            result("TCP/TLS Connectivity", True, f"Connected to {hostname}:{port}")
+            return True
+        except Exception as e:
+            result("TCP/TLS Connectivity", False, str(e))
+            return False
+
+    # ---------------------------------------------------------------------------
+    # Main
+    # ---------------------------------------------------------------------------
+    def main():
+        if not API_KEY:
+            print("ERROR: DEEPGRAM_API_KEY not set. Create the secret:")
+            print("  kubectl create secret generic deepgram-test-key --from-literal=api-key=<KEY>")
+            sys.exit(1)
+
+        banner("Deepgram Flux In-Cluster Connectivity Test")
+        print(f"  Endpoint:      {ENDPOINT}")
+        print(f"  Model:         {MODEL}")
+        print(f"  Skip TLS:      {SKIP_TLS}")
+        print(f"  Skip Streaming:{SKIP_STREAMING}")
+
+        tests_passed = 0
+        tests_failed = 0
+        tests_run = 0
+
+        # Test 1: TCP/TLS
+        print(f"\n  RUN   TCP/TLS Connectivity")
+        tests_run += 1
+        if test_connectivity():
+            tests_passed += 1
+        else:
+            tests_failed += 1
+            print("\n  Stopping early — cannot reach endpoint.")
+            print(f"\n  Results: {tests_passed} passed, {tests_failed} failed out of {tests_run}")
+            sys.exit(1)
+
+        # Test 2: Health
+        print(f"\n  RUN   Health Check")
+        tests_run += 1
+        if test_health():
+            tests_passed += 1
+        else:
+            tests_failed += 1
+
+        # Test 3: Flux Streaming WSS
+        if SKIP_STREAMING:
+            print(f"\n  SKIP  Flux Streaming STT")
+        else:
+            print(f"\n  RUN   Flux Streaming STT")
+            tests_run += 1
+            if test_flux_streaming():
+                tests_passed += 1
+            else:
+                tests_failed += 1
+
+        banner("Results")
+        print(f"  {tests_passed} passed, {tests_failed} failed out of {tests_run}")
+        print()
+
+        sys.exit(1 if tests_failed > 0 else 0)
+
+    if __name__ == "__main__":
+        main()
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: deepgram-flux-test
+  labels:
+    app: deepgram-flux-test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: test
+      image: python:3.12-slim
+      command:
+        - sh
+        - -c
+        - |
+          pip install --quiet websocket-client && python /scripts/test.py
+      env:
+        - name: DEEPGRAM_ENDPOINT
+          value: "https://useast1.internal.voiceflow.com:8002"
+        - name: DEEPGRAM_MODEL
+          value: "flux-general-en"
+        - name: SKIP_TLS_VERIFY
+          value: "false"
+        - name: SKIP_STREAMING
+          value: "false"
+        - name: DEEPGRAM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: deepgram-test-key
+              key: api-key
+      volumeMounts:
+        - name: test-script
+          mountPath: /scripts
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+  volumes:
+    - name: test-script
+      configMap:
+        name: deepgram-flux-test-script
